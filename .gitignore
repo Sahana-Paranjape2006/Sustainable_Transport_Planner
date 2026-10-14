@@ -1,0 +1,16 @@
+# Node.js dependencies
+node_modules/
+
+# Python virtual environments
+env/
+.venv/
+
+# Environment secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter files
+.ipynb_checkpoints/
