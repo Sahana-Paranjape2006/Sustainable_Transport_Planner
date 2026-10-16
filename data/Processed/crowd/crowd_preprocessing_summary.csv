@@ -1,0 +1,17 @@
+Metric,Value
+Processed station-hour records,95616.0
+Unique stations,83.0
+Entry duplicate records removed,0.0
+Exit duplicate records removed,0.0
+Entry missing cells,0.0
+Exit missing cells,0.0
+Entry invalid hours,0.0
+Exit invalid hours,0.0
+Entry negative ridership records,0.0
+Exit negative ridership records,0.0
+Missing Station_ID,0.0
+Low/Medium threshold (33rd percentile),126.0
+Medium/High threshold (66th percentile),776.0
+Low records,31898.0
+Medium records,31889.0
+High records,31829.0
