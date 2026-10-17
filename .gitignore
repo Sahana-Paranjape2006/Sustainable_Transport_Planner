@@ -1,16 +1,8 @@
-# Node.js dependencies
+
 node_modules/
-
-# Python virtual environments
-env/
-.venv/
-
-# Environment secrets
+**/node_modules/
+dist/
 .env
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Jupyter files
-.ipynb_checkpoints/
+.env.*
+!.env.example
+backend/data/BMTC_route_stops.csv
