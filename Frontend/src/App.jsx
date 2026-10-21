@@ -434,6 +434,12 @@ function App() {
                     ? Number(route.distanceKm)
                     : null;
 
+                    const travelTimeMinutes =
+  route.estimatedTravelTimeMinutes != null &&
+  Number.isFinite(Number(route.estimatedTravelTimeMinutes))
+    ? Number(route.estimatedTravelTimeMinutes)
+    : null;
+
                 return (
                   <Fragment key={`${routeKey}-${index}`}>
                     {index === 0 && (
@@ -526,6 +532,28 @@ function App() {
                           </span>
                         </div>
 
+                        
+<div>
+  <Clock size={17} />
+  <span>
+    {travelTimeMinutes !== null ? (
+      <>
+        <strong>
+          {travelTimeMinutes >= 60
+            ? `${Math.floor(travelTimeMinutes / 60)} hr ${
+                travelTimeMinutes % 60
+              } min`
+            : `${travelTimeMinutes} min`}
+        </strong>{" "}
+        estimated travel time
+      </>
+    ) : (
+      "Travel time unavailable"
+    )}
+  </span>
+</div>
+
+
                         <div>
                           <Navigation size={17} />
                           <span>
@@ -562,6 +590,22 @@ function App() {
                           </div>
                         )}
                       </div>
+
+                      <div>
+  <Clock size={17} />
+  <span>
+    {route.estimatedTravelTimeMinutes != null ? (
+      <>
+        <strong>
+          {route.estimatedTravelTimeMinutes} min
+        </strong>{" "}
+        expected travel time
+      </>
+    ) : (
+      "Travel time unavailable"
+    )}
+  </span>
+</div>
 
                       {isExpanded && (
                         <div className="stop-details">

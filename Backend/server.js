@@ -12,7 +12,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 const DATA_FILE = path.join(__dirname, "data", "routes.csv");
-const STOPS_FILE = path.join(__dirname, "data", "BMTC_route_stop.csv");
+const STOPS_FILE = path.join(
+  __dirname,
+  "data",
+  "BMTC_route_stops.csv"
+);
 
 app.use(cors());
 app.use(express.json());
@@ -167,14 +171,40 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 
+
+function getCoordinatesForStop(stopName) {
+  const wanted = normalizeStop(stopName);
+
+  if (!wanted) return null;
+
+  // First: exact normalized stop-name match.
+  const exact = stopCoordinates.get(wanted);
+
+  if (exact) return exact;
+
+  // Second: try a similar stop name.
+  let bestCoordinates = null;
+  let bestScore = 0;
+
+  for (const [coordinateStopName, coordinates] of stopCoordinates.entries()) {
+    const score = similarity(wanted, coordinateStopName);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCoordinates = coordinates;
+    }
+  }
+
+  // Avoid matching completely different stops.
+  return bestScore >= 0.75 ? bestCoordinates : null;
+}
+
 function calculateJourneyDistance(stops) {
   if (!Array.isArray(stops) || stops.length < 2) {
     return null;
   }
 
-  const coordinates = stops.map((stop) =>
-    stopCoordinates.get(normalizeStop(stop))
-  );
+  const coordinates = stops.map(getCoordinatesForStop);
 
   const validCoordinate = (point) =>
     point &&
@@ -182,10 +212,8 @@ function calculateJourneyDistance(stops) {
     Number.isFinite(point.lon) &&
     (point.lat !== 0 || point.lon !== 0);
 
-  // First, try to calculate the journey using all stop coordinates.
-  const allStopsHaveCoordinates = coordinates.every(validCoordinate);
-
-  if (allStopsHaveCoordinates) {
+  // Use every stop when all stops have coordinates.
+  if (coordinates.every(validCoordinate)) {
     let totalKm = 0;
 
     for (let i = 0; i < coordinates.length - 1; i++) {
@@ -198,20 +226,22 @@ function calculateJourneyDistance(stops) {
     }
 
     return {
-      distanceKm: Math.round(totalKm * 100) / 100,
-      distanceType: "stop_to_stop_estimate",
+      distanceKm: Number(totalKm.toFixed(2)),
+      distanceType: "stop_to_stop_estimate"
     };
   }
 
-  // If some intermediate stops lack coordinates, estimate the
-  // straight-line distance between the journey's endpoints.
+  // If some stops are missing coordinates, try the journey endpoints.
   const firstCoordinate = coordinates.find(validCoordinate);
   const lastCoordinate = [...coordinates].reverse().find(validCoordinate);
 
+  if (!firstCoordinate || !lastCoordinate) {
+    return null;
+  }
+
   if (
-    !firstCoordinate ||
-    !lastCoordinate ||
-    firstCoordinate === lastCoordinate
+    firstCoordinate.lat === lastCoordinate.lat &&
+    firstCoordinate.lon === lastCoordinate.lon
   ) {
     return null;
   }
@@ -224,10 +254,11 @@ function calculateJourneyDistance(stops) {
   );
 
   return {
-    distanceKm: Math.round(distanceKm * 100) / 100,
-    distanceType: "straight_line_estimate",
+    distanceKm: Number(distanceKm.toFixed(2)),
+    distanceType: "straight_line_estimate"
   };
 }
+
 
 // --------------------------------------------------
 // LOAD ROUTE DATA
@@ -395,34 +426,72 @@ async function loadStopCoordinates() {
 // BUILD A JOURNEY
 // --------------------------------------------------
 
+
+
 function buildJourney(legs, from, to) {
   const combinedStops = [];
 
   for (const leg of legs) {
-    if (!combinedStops.length) {
+    if (combinedStops.length === 0) {
       combinedStops.push(...leg.stops);
     } else {
       combinedStops.push(...leg.stops.slice(1));
     }
   }
 
-  const transferStops = legs.slice(0, -1).map((leg) => leg.to);
+  const transferStops = legs
+    .slice(0, -1)
+    .map((leg) => leg.to);
+
+  // Calculate distance using the available stop coordinates.
+  const distanceResult = calculateJourneyDistance(combinedStops);
+
+  // These are estimates, not live BMTC timings.
+  const averageBusSpeedKmph = 18;
+  const roadDistanceFactor = 1.3;
+  const transferWaitingMinutes = 10;
+
+  let estimatedTravelTimeMinutes = null;
+
+  if (
+    distanceResult &&
+    Number.isFinite(distanceResult.distanceKm) &&
+    distanceResult.distanceKm >= 0
+  ) {
+    const estimatedRoadDistanceKm =
+      distanceResult.distanceKm * roadDistanceFactor;
+
+    estimatedTravelTimeMinutes = Math.ceil(
+      (estimatedRoadDistanceKm / averageBusSpeedKmph) * 60 +
+      (legs.length - 1) * transferWaitingMinutes
+    );
+  }
 
   return {
     routeName: legs.map((leg) => leg.routeName).join(" + "),
-    fullName: legs.length === 1
-      ? `${from} → ${to}`
-      : `${from} → ${to} (${legs.length - 1} transfer(s) via ${transferStops.join(", ")})`,
+
+    fullName:
+      legs.length === 1
+        ? `${from} → ${to}`
+        : `${from} → ${to} (${legs.length - 1} transfer(s) via ${transferStops.join(", ")})`,
+
     from,
     to,
     transfers: legs.length - 1,
     stopCount: combinedStops.length,
-    ...calculateJourneyDistance(combinedStops) || {
-  distanceKm: null,
-  distanceType: "unavailable",
-},
-    tripCount: legs.length === 1 ? legs[0].tripCount : null,
+
+    ...(distanceResult || {
+      distanceKm: null,
+      distanceType: "unavailable"
+    }),
+
+    estimatedTravelTimeMinutes,
+
+    tripCount:
+      legs.length === 1 ? legs[0].tripCount : null,
+
     stops: combinedStops,
+
     legs: legs.map((leg) => ({
       routeName: leg.routeName,
       from: leg.from,
@@ -431,6 +500,8 @@ function buildJourney(legs, from, to) {
     }))
   };
 }
+
+
 
 // --------------------------------------------------
 // FIND DIRECT AND TRANSFER JOURNEYS
