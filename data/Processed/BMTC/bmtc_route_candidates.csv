@@ -1,0 +1,2 @@
+trip_id,start_route_id,destination_route_id,start_stop,destination_stop,start_sequence,destination_sequence,stops_between,route_id_consistent
+53140,2196,5454,CS-Kempegowda Bus Station,CS-Kengeri Bus Stand,29,34,4,False
