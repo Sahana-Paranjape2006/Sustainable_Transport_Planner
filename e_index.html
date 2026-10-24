@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoTrip | CO₂ Calculator</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f7f1;
+      color: #20372c;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 8%;
+      background: white;
+      border-bottom: 1px solid #e5eadf;
+    }
+
+    .logo { font-size: 23px; font-weight: bold; color: #176b46; }
+    header span { color: #738078; font-size: 14px; }
+
+    main {
+      max-width: 1050px;
+      margin: 55px auto;
+      padding: 0 20px;
+    }
+
+    .intro { text-align: center; margin-bottom: 35px; }
+    .intro h1 { font-size: clamp(30px, 5vw, 46px); margin-bottom: 12px; }
+    .intro p { color: #68786d; line-height: 1.6; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .card {
+      background: white;
+      padding: 28px;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px #243b2c0d;
+    }
+
+    h2 { font-size: 21px; margin-top: 0; }
+
+    label {
+      display: block;
+      margin: 20px 0 8px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #d7dfd6;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
+      color: #20372c;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 24px;
+      border: 0;
+      border-radius: 10px;
+      background: #176b46;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover { background: #105536; }
+    button:disabled { opacity: .6; cursor: wait; }
+
+    .result {
+      background: #f1f7ef;
+      border-radius: 15px;
+      padding: 22px;
+      margin-top: 20px;
+    }
+
+    .eyebrow {
+      color: #65766a;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .number { font-size: 38px; font-weight: bold; margin: 12px 0; }
+    .rating { font-weight: bold; color: #176b46; }
+    .muted { color: #6c7a70; font-size: 14px; line-height: 1.6; }
+
+    .transport {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 28px;
+      color: #65766a;
+      font-size: 13px;
+    }
+
+    #message { margin-top: 14px; color: #a33333; font-size: 14px; }
+    footer { text-align: center; padding: 25px; color: #78847b; font-size: 12px; }
+
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr; }
+      header { padding: 18px 5%; }
+      main { margin-top: 35px; }
+      .card { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🌿 EcoTrip CO₂</div>
+    <span>Make every trip count</span>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h1>Measure your trip's footprint.</h1>
+      <p>Estimate your travel emissions and explore greener ways to travel.</p>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <h2>Calculate your journey</h2>
+        <p class="muted">Enter your trip details below.</p>
+
+        <form id="co2Form">
+          <label for="vehicle">Choose transport</label>
+          <select id="vehicle" required>
+            <option value="">Loading vehicles...</option>
+          </select>
+
+          <label for="distance">Distance (km)</label>
+          <input id="distance" type="number" min="0" step="any"
+                 placeholder="e.g. 10" required>
+
+          <label for="passengers">Number of passengers</label>
+          <input id="passengers" type="number" min="1" step="1"
+                 value="1" required>
+
+          <button id="calculateButton" type="submit">
+            Calculate emissions
+          </button>
+          <div id="message" role="status"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Your results</h2>
+        <p class="muted">Your estimated trip footprint will appear here.</p>
+
+        <div class="result" aria-live="polite">
+          <div class="eyebrow">YOUR TRIP FOOTPRINT</div>
+          <div class="number" id="emissions">— kg CO₂</div>
+          <div class="rating" id="rating">Ready when you are</div>
+          <p class="muted" id="details">
+            Choose your transport and enter your journey details.
+          </p>
+        </div>
+
+        <h2 style="margin-top:25px">Travel a little greener</h2>
+        <p class="muted">
+          Walking and cycling have zero direct travel emissions in this
+          demo. Public transport may also reduce emissions per passenger.
+        </p>
+      </div>
+    </section>
+
+    <div class="transport">
+      <span>🚗 Car</span>
+      <span>🚌 Bus</span>
+      <span>🚇 Metro</span>
+      <span>🚲 Bicycle</span>
+      <span>🚶 Walking</span>
+    </div>
+  </main>
+
+  <footer>
+    EcoTrip CO₂ Calculator · Estimates only, based on illustrative emission factors.
+  </footer>
+
+  <script>
+    const API_URL = "http://localhost:5002/api/co2";
+    const vehicleSelect = document.getElementById("vehicle");
+    const form = document.getElementById("co2Form");
+    const message = document.getElementById("message");
+    const button = document.getElementById("calculateButton");
+
+    async function loadVehicles() {
+      try {
+        const response = await fetch(`${API_URL}/vehicles`);
+        if (!response.ok) throw new Error("Could not load vehicles.");
+
+        const data = await response.json();
+        vehicleSelect.innerHTML = "";
+
+        data.vehicles.forEach(vehicle => {
+          const option = document.createElement("option");
+          option.value = vehicle.vehicleType;
+          option.textContent = vehicle.label;
+          vehicleSelect.appendChild(option);
+        });
+
+        vehicleSelect.value = "car_petrol";
+      } catch (error) {
+        vehicleSelect.innerHTML =
+          '<option value="">Vehicles unavailable</option>';
+        message.textContent =
+          "Cannot connect to the API. Make sure node co2_server.js is running.";
+      }
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      message.textContent = "";
+      button.disabled = true;
+      button.textContent = "Calculating...";
+
+      try {
+        const payload = {
+          vehicleType: vehicleSelect.value,
+          distanceKm: Number(document.getElementById("distance").value),
+          passengers: Number(document.getElementById("passengers").value)
+        };
+
+        if (!payload.vehicleType ||
+            !Number.isFinite(payload.distanceKm) ||
+            payload.distanceKm < 0 ||
+            !Number.isInteger(payload.passengers) ||
+            payload.passengers < 1) {
+          throw new Error("Enter a valid vehicle, distance and passenger count.");
+        }
+
+        const response = await fetch(`${API_URL}/calculate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Calculation failed.");
+        }
+
+        const result = data.result;
+        document.getElementById("emissions").textContent =
+          `${result.totalKgCO2} kg CO₂`;
+        document.getElementById("rating").textContent =
+          `${result.rating.score} · ${result.rating.label}`;
+        document.getElementById("details").textContent =
+          `${result.vehicle} · ${result.distanceKm} km · ` +
+          `${result.passengers} passenger(s). ` +
+          `Per passenger: ${result.perPassengerKgCO2} kg CO₂.`;
+      } catch (error) {
+        message.textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Calculate emissions";
+      }
+    });
+
+    loadVehicles();
+  </script>
+</body>
+</html>
