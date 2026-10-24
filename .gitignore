@@ -6,3 +6,5 @@ dist/
 .env.*
 !.env.example
 backend/data/BMTC_route_stops.csv
+
+data/raw/BMTC/bmtc.zip
