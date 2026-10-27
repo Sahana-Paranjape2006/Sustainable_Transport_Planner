@@ -1,0 +1,13 @@
+{
+  "name": "p-emission",
+  "version": "1.0.0",
+  "description": "CO2 emissions backend",
+  "main": "co2_server.js",
+  "scripts": {
+    "start": "node co2_server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.1.0"
+  }
+}
