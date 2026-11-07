@@ -1,0 +1,8 @@
+Travel_Time_Minutes,Trips,Percentage,CMP_Table,CMP_Printed_Page,Meaning,Underlying_Source
+<10,1775,1.0,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+10-20,90919,51.5,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+20-30,26338,14.9,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+30-45,20677,11.7,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+45-60,20594,11.7,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+60-90,10667,6.0,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"
+>90,5696,3.2,Table 2-25,2-41,Travel time from initial origin to bus terminal,"RITES Phase III Corridors of Bangalore Metro, 2016"

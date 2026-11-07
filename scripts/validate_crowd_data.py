@@ -2,109 +2,326 @@
 from pathlib import Path
 import pandas as pd
 
-# Team repository location
 PROJECT = Path(__file__).resolve().parent.parent
-DATA = PROJECT / "data" / "Processed" / "crowd"
-
-hourly_file = DATA / "crowd_station_hourly_processed.csv"
-mapping_file = DATA / "station_mapping.csv"
-station_file = DATA / "crowd_station_summary.csv"
-hourly_summary_file = DATA / "crowd_hourly_summary.csv"
-
-# Load datasets
-hourly = pd.read_csv(hourly_file)
-mapping = pd.read_csv(mapping_file)
-stations = pd.read_csv(station_file)
-hour_summary = pd.read_csv(hourly_summary_file)
-
-print("\n========== CROWD DATA VALIDATION ==========")
-
-# 1. Dataset size and date range
-hourly["Date"] = pd.to_datetime(
-    hourly["Date"], errors="coerce"
+DATA_FILE = (
+    PROJECT / "data" / "Processed" / "crowd"
+    / "crowd_station_hourly_processed_test.csv"
 )
 
-print("\n1. DATASET OVERVIEW")
-print("Hourly records:", len(hourly))
-print("Unique stations:", hourly["Station_ID"].nunique())
-print("Date range:", hourly["Date"].min(), "to",
-      hourly["Date"].max())
-print("Invalid dates:", hourly["Date"].isna().sum())
+df = pd.read_csv(DATA_FILE)
+
+print("\n===== CROWD DATA VALIDATION =====")
+
+# 1. Check required columns
+required_columns = [
+    "Date", "Hour", "Station_ID", "Station",
+    "Entry_Ridership", "Exit_Ridership",
+    "Entry_Record_Present", "Exit_Record_Present",
+    "Total_Activity", "Crowd_Level"
+]
+
+missing_columns = [
+    col for col in required_columns if col not in df.columns
+]
+
+print("Missing columns:", missing_columns or "None")
 
 # 2. Check duplicate station-hour records
-print("\n2. DUPLICATE CHECK")
-key = ["Date", "Hour", "Station_ID"]
-duplicates = hourly.duplicated(subset=key).sum()
+duplicates = df.duplicated(
+    subset=["Date", "Hour", "Station_ID"]
+).sum()
 print("Duplicate station-hour records:", duplicates)
 
-# 3. Check crowd-level distribution
-print("\n3. CROWD LEVEL DISTRIBUTION")
-print(hourly["Crowd_Level"].value_counts(dropna=False))
+# 3. Check total activity calculation
+expected_total = df["Entry_Ridership"] + df["Exit_Ridership"]
+incorrect_totals = (df["Total_Activity"] - expected_total).abs().gt(0.000001).sum()
+print("Incorrect total activity values:", incorrect_totals)
 
-print("\nCrowd level percentages:")
+# 4. Check hour values
+invalid_hours = (~df["Hour"].between(0, 23)).sum()
+print("Invalid hour values:", invalid_hours)
+
+# 5. Check missing values in important fields
+print("\nMissing values:")
+print(df[required_columns].isna().sum())
+
+# 6. Check crowd-level categories
+print("\nCrowd-level counts:")
+print(df["Crowd_Level"].value_counts(dropna=False))
+
+# 7. Check record-presence flags
+print("\nRecord-presence combinations:")
 print(
-    (hourly["Crowd_Level"].value_counts(
-        normalize=True, dropna=False
-    ) * 100).round(2)
+    df.groupby(
+        ["Entry_Record_Present", "Exit_Record_Present"],
+        dropna=False
+    ).size()
 )
 
-# 4. Check total activity calculation
-print("\n4. ACTIVITY CALCULATION")
-expected = (
-    hourly["Entry_Ridership"] +
-    hourly["Exit_Ridership"]
+print("\n===== VALIDATION FINISHED =====")
+
+# 8. Examine total activity distribution
+print("\n===== TOTAL ACTIVITY STATISTICS =====")
+print(df["Total_Activity"].describe(
+    percentiles=[0.25, 0.50, 0.75, 0.90, 0.95, 0.99]
+))
+
+print("\n===== ACTIVITY BY CURRENT CROWD LEVEL =====")
+print(
+    df.groupby("Crowd_Level", observed=False)["Total_Activity"]
+    .agg(["count", "min", "median", "mean", "max"])
 )
-difference = (
-    hourly["Total_Activity"] - expected
-).abs()
 
-print("Rows where total activity differs from entries + exits:",
-      (difference > 0.01).sum())
-
-print("Negative entry values:",
-      (hourly["Entry_Ridership"] < 0).sum())
-print("Negative exit values:",
-      (hourly["Exit_Ridership"] < 0).sum())
-print("Negative total activity:",
-      (hourly["Total_Activity"] < 0).sum())
-
-# 5. Check station mapping
-print("\n5. STATION MAPPING")
-print("Stations in mapping:", mapping["Station_ID"].nunique())
-print("Stations in hourly data:", hourly["Station_ID"].nunique())
-
-unmapped = set(hourly["Station_ID"]) - set(mapping["Station_ID"])
-print("Station IDs missing from mapping:", len(unmapped))
-if unmapped:
-    print("Unmapped IDs:", sorted(unmapped))
-
-# Check whether names agree for matching station IDs
-name_check = hourly[["Station_ID", "Station"]].drop_duplicates()
-name_check = name_check.merge(
-    mapping,
-    on="Station_ID",
-    how="left",
-    suffixes=("_hourly", "_mapping")
+print("\n===== BUSIEST STATION-HOUR RECORDS =====")
+print(
+    df.sort_values("Total_Activity", ascending=False)[
+        ["Date", "Hour", "Station", "Total_Activity", "Crowd_Level"]
+    ].head(10).to_string(index=False)
 )
-name_mismatch = (
-    name_check["Station_hourly"].str.strip()
-    != name_check["Station_mapping"].str.strip()
+
+print("\n===== AVERAGE ACTIVITY BY HOUR =====")
+print(
+    df.groupby("Hour")["Total_Activity"]
+    .agg(["mean", "median", "max"])
+    .round(2)
+    .to_string()
 )
-print("Station name mismatches:", name_mismatch.sum())
 
-# 6. Check hourly summary
-print("\n6. HOURLY SUMMARY")
-print("Number of hour rows:", len(hour_summary))
-print("Hour values:", sorted(hour_summary["Hour"].unique()))
-print("Lowest activity hours:")
-print(hour_summary.nsmallest(
-    5, "Total_Activity_All_Stations"
-).to_string(index=False))
+print("\n===== ZERO-ACTIVITY CHECK =====")
 
-# 7. Check summary station count
-print("\n7. SUMMARY CONSISTENCY")
-print("Rows in station summary:", len(stations))
-print("Unique summary stations:", stations["Station_ID"].nunique())
+print(
+    "Zero total activity records:",
+    (df["Total_Activity"] == 0).sum()
+)
 
-print("\nValidation checks completed.")
-print("Review any non-zero errors before integration.")
+print(
+    "Zero activity percentage:",
+    round((df["Total_Activity"] == 0).mean() * 100, 2),
+    "%"
+)
+
+print("\n===== RECORD PRESENCE BY HOUR =====")
+
+print(
+    df.groupby("Hour")[
+        ["Entry_Record_Present", "Exit_Record_Present"]
+    ].mean().round(3).to_string()
+)
+
+print("\n===== ZERO-ACTIVITY BREAKDOWN =====")
+
+zero_activity = df[df["Total_Activity"] == 0]
+
+observed_zero = zero_activity[
+    zero_activity["Entry_Record_Present"]
+    & zero_activity["Exit_Record_Present"]
+]
+
+incomplete_zero = zero_activity[
+    ~zero_activity["Entry_Record_Present"]
+    | ~zero_activity["Exit_Record_Present"]
+]
+
+print("Total zero-activity records:", len(zero_activity))
+print("Zero with both records present:", len(observed_zero))
+print("Zero with incomplete records:", len(incomplete_zero))
+
+print("\n===== ZERO ACTIVITY BY HOUR =====")
+
+print(
+    zero_activity.groupby("Hour").size()
+    .reindex(range(24), fill_value=0)
+    .to_string()
+)
+
+print("\n===== ZERO ACTIVITY BY STATION =====")
+
+station_zero = (
+    df.assign(Is_Zero=df["Total_Activity"] == 0)
+    .groupby("Station")
+    .agg(
+        Total_Records=("Total_Activity", "size"),
+        Zero_Records=("Is_Zero", "sum"),
+        Average_Activity=("Total_Activity", "mean")
+    )
+)
+
+station_zero["Zero_Percentage"] = (
+    station_zero["Zero_Records"]
+    / station_zero["Total_Records"] * 100
+).round(2)
+
+print(
+    station_zero.sort_values(
+        "Zero_Percentage", ascending=False
+    ).head(15).to_string()
+)
+
+print("\n===== INCOMPLETE ENTRY RECORDS BY STATION =====")
+
+print(
+    df.loc[~df["Entry_Record_Present"]]
+    .groupby("Station")
+    .size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_string()
+)
+
+print("\n===== RAW ENTRY AND EXIT COVERAGE =====")
+
+PROJECT = Path(__file__).resolve().parent.parent
+RAW = PROJECT / "data" / "raw" / "crowd"
+
+entry_raw = pd.read_csv(RAW / "station-hourly.csv", sep=";")
+exit_raw = pd.read_csv(RAW / "station-hourly-exits.csv", sep=";")
+
+for label, raw_df in [("Entry", entry_raw), ("Exit", exit_raw)]:
+    print(f"\n{label} dataset")
+    print("Rows:", len(raw_df))
+    print("Columns:", raw_df.columns.tolist())
+    print("Date range:", raw_df["Date"].min(), "to", raw_df["Date"].max())
+    print("Unique stations:", raw_df["Station"].nunique())
+    print("Duplicate station-hour keys:", raw_df.duplicated(
+        ["Date", "Hour", "Station"]
+    ).sum())
+
+print("\n===== RAW ENTRY COVERAGE FOR SELECTED STATIONS =====")
+
+selected = [
+    "BTM Layout",
+    "Beratena Agrahara",
+    "Biocon Hebbagodi",
+    "Bommanahalli",
+    "Central Silk Board",
+]
+
+for station in selected:
+    entry_rows = entry_raw[entry_raw["Station"] == station]
+    exit_rows = exit_raw[exit_raw["Station"] == station]
+
+    print(
+        f"{station}: "
+        f"entry rows={len(entry_rows)}, "
+        f"exit rows={len(exit_rows)}"
+    )
+
+print("\n===== MISSING ENTRY RECORDS BY HOUR =====")
+
+expected_hours = pd.MultiIndex.from_product(
+    [
+        pd.date_range("2025-08-01", "2025-09-30", freq="D")
+            .strftime("%Y-%m-%d"),
+        range(24),
+        entry_raw["Station"].unique()
+    ],
+    names=["Date", "Hour", "Station"]
+)
+
+actual_entry_keys = pd.MultiIndex.from_frame(
+    entry_raw[["Date", "Hour", "Station"]].assign(
+        Hour=lambda x: pd.to_numeric(x["Hour"])
+    ).assign(
+        Date=lambda x: pd.to_datetime(x["Date"]).dt.strftime("%Y-%m-%d")
+    )
+)
+
+missing_keys = expected_hours.difference(actual_entry_keys)
+
+missing_df = missing_keys.to_frame(index=False)
+
+print("Total missing station-hour records:", len(missing_df))
+print("\nMissing records by hour:")
+print(
+    missing_df.groupby("Hour").size()
+    .reindex(range(24), fill_value=0)
+    .to_string()
+)
+
+print("\nMissing records by date (first 15 dates):")
+print(
+    missing_df.groupby("Date").size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_string()
+)
+
+print("\n===== ENTRY COVERAGE CROSS-CHECK =====")
+
+entry_keys = entry_raw[["Date", "Hour", "Station"]].copy()
+exit_keys = exit_raw[["Date", "Hour", "Station"]].copy()
+
+for keys in [entry_keys, exit_keys]:
+    keys["Date"] = pd.to_datetime(keys["Date"]).dt.strftime("%Y-%m-%d")
+    keys["Hour"] = pd.to_numeric(keys["Hour"], errors="coerce")
+    keys["Station"] = keys["Station"].astype(str).str.strip()
+
+entry_key_set = set(map(tuple, entry_keys.to_numpy()))
+exit_key_set = set(map(tuple, exit_keys.to_numpy()))
+
+missing_from_entry = exit_key_set - entry_key_set
+
+print("Unique entry station-hour keys:", len(entry_key_set))
+print("Unique exit station-hour keys:", len(exit_key_set))
+print("Exit keys with no matching entry key:", len(missing_from_entry))
+
+missing_from_entry_df = pd.DataFrame(
+    list(missing_from_entry),
+    columns=["Date", "Hour", "Station"]
+)
+
+print("\nMissing entry records by date (top 15):")
+print(
+    missing_from_entry_df.groupby("Date").size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_string()
+)
+
+print("\nMissing entry records by station (top 15):")
+print(
+    missing_from_entry_df.groupby("Station").size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_string()
+)
+
+print("\n===== FULL ENTRY DATA GAP SUMMARY =====")
+
+print("\nMissing entry records by date:")
+print(
+    missing_from_entry_df.groupby("Date").size()
+    .reindex(
+        pd.date_range("2025-08-01", "2025-09-30")
+        .strftime("%Y-%m-%d"),
+        fill_value=0
+    )
+    .to_string()
+)
+
+print("\nMissing entry records by station:")
+print(
+    missing_from_entry_df.groupby("Station").size()
+    .sort_values(ascending=False)
+    .to_string()
+)
+
+print("\n===== FULL ENTRY DATA GAP SUMMARY =====")
+
+print("\nMissing entry records by date:")
+print(
+    missing_from_entry_df.groupby("Date").size()
+    .reindex(
+        pd.date_range("2025-08-01", "2025-09-30")
+        .strftime("%Y-%m-%d"),
+        fill_value=0
+    )
+    .to_string()
+)
+
+print("\nMissing entry records by station:")
+print(
+    missing_from_entry_df.groupby("Station").size()
+    .sort_values(ascending=False)
+    .to_string()
+)

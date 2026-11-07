@@ -1,0 +1,7 @@
+Dispersal_Mode,Trips,Percentage,CMP_Table,CMP_Printed_Page,Underlying_Source
+Car,1276,0.7,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"
+Taxi,1217,0.7,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"
+Two Wheeler,3051,1.7,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"
+Auto,3502,2.0,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"
+Bus,99284,56.2,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"
+Walk,68336,38.7,Table 2-24,2-41,"RITES Phase III Corridors of Bangalore Metro, 2016"

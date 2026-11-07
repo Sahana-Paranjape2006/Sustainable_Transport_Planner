@@ -8,3 +8,21 @@ dist/
 backend/data/BMTC_route_stops.csv
 
 data/raw/BMTC/bmtc.zip
+# Python temporary files
+__pycache__/
+*.py[cod]
+
+# Large BMTC GTFS file (keep locally)
+data/Processed/crowd/bmtc/raw/bmtc-gtfs-main/gtfs/bmtc/shapes.txt
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Large BMTC GTFS shapes file
+data/Processed/crowd/bmtc/raw/bmtc-gtfs-main/gtfs/bmtc/shapes.txt
+
+# Temporary Metro analysis files
+data/Processed/crowd/crowd_station_hourly_processed_backup.csv
+data/Processed/crowd/crowd_station_hourly_processed_test.csv
+data/Processed/crowd/crowd_station_hourly_processed_test_backup.csv.csv
+data/Processed/crowd/crowd_station_hourly_processed_test_previous.csv.csv
