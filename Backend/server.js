@@ -20,6 +20,8 @@ const STOPS_FILE = path.join(
 
 app.use(cors());
 app.use(express.json());
+const co2Routes = require("./co2_e_routes");
+app.use("/api/co2", co2Routes);
 
 let routeData = [];
 let allStops = [];
